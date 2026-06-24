@@ -33,7 +33,7 @@ export const partnerDefaults = {
   tjänstepension55_64: 0,
   tjänstepension65plus: 0,
   allmänPension65plus: 0,
-  nordnetPrivat55_64: 0,
+  privatPension55_64: 0,
   kommunRate: 0.3255,
   // Stiftelse — engångskapital som betalas ut som annuitet (start/stop-ålder).
   stiftelseName: 'Stiftelse',
@@ -86,7 +86,7 @@ export const defaults = {
   tjänstepension55_64: 15000,
   tjänstepension65plus: 10000,
   allmänPension65plus: 18000,
-  nordnetPrivat55_64: 0,
+  privatPension55_64: 0,
 
   // Swedish income tax — kommunalskatt + landsting + begravning for Tyresö 2025
   kommunRate: 0.3255,
@@ -310,7 +310,7 @@ export function buildSchedule(inputs, overrides = {}) {
     const pensionInflFactor = Math.pow(1 + inputs.inflation, age - inputs.currentAge)
     let tjBrutto, alBrutto
     if (age < 65) {
-      tjBrutto = (inputs.tjänstepension55_64 + inputs.nordnetPrivat55_64) * pensionInflFactor
+      tjBrutto = (inputs.tjänstepension55_64 + inputs.privatPension55_64) * pensionInflFactor
       alBrutto = 0
     } else {
       tjBrutto = inputs.tjänstepension65plus * pensionInflFactor

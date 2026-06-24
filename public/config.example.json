@@ -51,7 +51,7 @@
   "tjänstepension55_64": 18000,
   "tjänstepension65plus": 10000,
   "allmänPension65plus": 18000,
-  "nordnetPrivat55_64": 1000,
+  "privatPension55_64": 1000,
 
   // Kommunalskattesats (kommun + region + begravningsavgift).
   "kommunRate": 0.32,
@@ -102,7 +102,7 @@
     "tjänstepension55_64": 7000,
     "tjänstepension65plus": 0,
     "allmänPension65plus": 13000,
-    "nordnetPrivat55_64": 0,
+    "privatPension55_64": 0,
     "kommunRate": 0.32,
     "stiftelseValue": 0,
     "stiftelseRate": 0.04,

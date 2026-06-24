@@ -67,7 +67,7 @@ Implementerat i `swedenIncomeTax()` och verifierat mot Skatteverkets tabeller un
 ### Kända, medvetna förenklingar
 
 - Public service-avgift ignoreras (~1 250 kr/person/år).
-- Förstärkt jobbskatteavdrag för 66+ modelleras ej.
+- 66+: förmånen för arbetande levereras enligt prop. 2025/26:32 via det förhöjda grundavdraget (som modelleras) — inget separat "förstärkt jobbskatteavdrag" läggs till. I praktiken noll effekt eftersom extrajobb antas sluta vid 65.
 - Skattegränser frysta på 2025-nivå (bracket creep ⇒ konservativt).
 - I hushållsvyn används person 1:s avkastning/inflation för båda; löneöverskott utöver månadssparandet sparas inte; endast person 1:s död modelleras.
 

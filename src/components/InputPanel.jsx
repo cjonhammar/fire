@@ -367,11 +367,11 @@ export default function InputPanel({
           onChange={(v) => update({ allmänPension65plus: v })}
         />
         <NumberField
-          label="Nordnet privat 55–64"
-          value={inputs.nordnetPrivat55_64}
+          label="Privat pension 55–64"
+          value={inputs.privatPension55_64}
           step={100}
           suffix="kr"
-          onChange={(v) => update({ nordnetPrivat55_64: v })}
+          onChange={(v) => update({ privatPension55_64: v })}
         />
         <PercentField
           label="Kommunalskatt + landsting"
