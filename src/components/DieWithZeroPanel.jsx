@@ -41,6 +41,9 @@ function TooltipBox({ active, payload, label }) {
       {get('dwz') != null && (
         <div className="text-fire-orange">Die With Zero: {formatMkr(get('dwz'))}</div>
       )}
+      {get('swr4') != null && (
+        <div className="text-emerald-400">4 %-regeln: {formatMkr(get('swr4'))}</div>
+      )}
     </div>
   )
 }
@@ -168,6 +171,15 @@ export default function DieWithZeroPanel({ inputs, update, schedule }) {
               name="Die With Zero"
               stroke="#f97316"
               strokeWidth={2}
+              dot={false}
+              type="monotone"
+            />
+            <Line
+              dataKey="swr4"
+              name="4 %-regeln"
+              stroke="#34d399"
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
               dot={false}
               type="monotone"
             />

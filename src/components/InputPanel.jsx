@@ -198,6 +198,7 @@ export default function InputPanel({
   setOverride,
   resetSchedule,
   stiftelseConfigured = false,
+  lonevaxlingConfigured = false,
 }) {
   return (
     <div>
@@ -448,6 +449,56 @@ export default function InputPanel({
           />
         </div>
       </Section>
+
+      {/* Visas om löneväxling finns i config ELLER har ett värde. */}
+      {(inputs.lonevaxlingMonthly > 0 || lonevaxlingConfigured) && (
+        <Section icon="🔄" title="Löneväxling">
+          <p className="text-[11px] leading-snug text-gray-500">
+            Bruttolöneavstående till extra tjänstepension. Arbetsgivaren lägger på
+            mellanskillnaden (~5,8 %). Beskattas som pension vid uttag. Se fliken
+            Löneväxling för om det lönar sig vs ISK.
+          </p>
+          <NumberField
+            label="Växlat belopp"
+            value={inputs.lonevaxlingMonthly}
+            step={500}
+            suffix="kr/mån"
+            onChange={(v) => update({ lonevaxlingMonthly: v })}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Från ålder"
+              value={inputs.lonevaxlingFrom}
+              onChange={(v) => update({ lonevaxlingFrom: v })}
+            />
+            <NumberField
+              label="Till ålder"
+              value={inputs.lonevaxlingTo}
+              onChange={(v) => update({ lonevaxlingTo: v })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Uttag från ålder"
+              value={inputs.lonevaxlingPayoutStart}
+              onChange={(v) => update({ lonevaxlingPayoutStart: v })}
+            />
+            <NumberField
+              label="Uttag antal år"
+              value={inputs.lonevaxlingPayoutYears}
+              onChange={(v) => update({ lonevaxlingPayoutYears: v })}
+            />
+          </div>
+          <PercentField
+            label="Arbetsgivarpåslag"
+            value={inputs.lonevaxlingPaslag ?? 0.058}
+            onChange={(v) => update({ lonevaxlingPaslag: v })}
+            min={0}
+            max={0.1}
+            step={0.001}
+          />
+        </Section>
+      )}
 
       <div className="px-4 py-4 text-[11px] leading-relaxed text-gray-500">
         Fritt kapital: {formatKr(inputs.iskValue + inputs.ppValue)}

@@ -46,6 +46,13 @@ export const partnerDefaults = {
   extraWorkMonthly: 0,
   extraWorkStartAge: 55,
   extraWorkEndAge: 65,
+  // Löneväxling — bruttolöneavstående kr/mån (dagens kr) till extra tjänstepension.
+  lonevaxlingMonthly: 0,
+  lonevaxlingFrom: 50,
+  lonevaxlingTo: 55,
+  lonevaxlingPaslag: 0.058,
+  lonevaxlingPayoutStart: 65,
+  lonevaxlingPayoutYears: 5,
 }
 
 // Neutrala exempelvärden — alla riktiga siffror ska ligga i public/config.json
@@ -102,6 +109,13 @@ export const defaults = {
   extraWorkMonthly: 0,
   extraWorkStartAge: 55,
   extraWorkEndAge: 65,
+  // Löneväxling — bruttolöneavstående kr/mån (dagens kr) till extra tjänstepension.
+  lonevaxlingMonthly: 0,
+  lonevaxlingFrom: 50,
+  lonevaxlingTo: 55,
+  lonevaxlingPaslag: 0.058,
+  lonevaxlingPayoutStart: 65,
+  lonevaxlingPayoutYears: 5,
 }
 
 // -----------------------------------------------------------------------------
@@ -116,6 +130,20 @@ export const ISK_TAX_RATE = 0.01065
 // Trinity SWR-nivåer (CLAUDE.md): 4 % standard, 3,5 % konservativt.
 export const SWR_STANDARD = 0.04
 export const SWR_CONSERVATIVE = 0.035
+
+// -----------------------------------------------------------------------------
+// Löneväxling — bruttolöneavstående till extra tjänstepension.
+// Arbetsgivaren lägger oftast på mellanskillnaden mellan arbetsgivaravgift
+// (31,42 %) och särskild löneskatt på pension (24,26 %) = 5,8 %, så premien blir
+// växlat belopp × 1,058. Pensionskapital har avkastningsskatt (ca SLR×0,75×15 %
+// ≈ 0,5 %/år) — lägre än ISK-schablonen, vilket är en del av fördelen.
+// Lönegräns: lönen EFTER växling bör vara över 8,07 inkomstbasbelopp/12 (≈ den
+// nivå där man fortfarande tjänar in full allmän pension). IBB 2025 = 80 600 kr.
+// -----------------------------------------------------------------------------
+export const LONEVAXLING_PASLAG = 0.058
+export const PENSION_AVKASTNINGSSKATT = 0.005
+export const IBB_2025 = 80_600
+export const LONEVAXLING_LONEGRANS = Math.round((8.07 * IBB_2025) / 12) // ≈ 54 200 kr/mån
 
 // -----------------------------------------------------------------------------
 // Phase definitions ("fasmodellen"). Built dynamically from fireAge..life-
@@ -282,6 +310,90 @@ export function stiftelseAnnualGross(inputs) {
 }
 
 // -----------------------------------------------------------------------------
+// Löneväxling — allt räknas i REALA kronor (dagens köpkraft), samma ankare som
+// resten av appen. Pensionskapitalet växer med real avkastning minus
+// avkastningsskatt; ISK-alternativet med real avkastning minus ISK-schablon.
+// Den reala annuiteten indexeras sedan med inflationen i buildSchedule, precis
+// som övriga pensioner.
+// -----------------------------------------------------------------------------
+function lvRealPensionRate(inputs) {
+  return inputs.returnRate - inputs.inflation - PENSION_AVKASTNINGSSKATT
+}
+function lvRealIskRate(inputs) {
+  return inputs.returnRate - inputs.inflation - ISK_TAX_RATE
+}
+export function lonevaxlingWindow(inputs) {
+  const from = Math.max(inputs.lonevaxlingFrom ?? inputs.currentAge, inputs.currentAge)
+  // Bidrag sker bara medan man arbetar — kläm sluttiden till senast FIRE.
+  const to = Math.min(Math.max(inputs.lonevaxlingTo ?? inputs.fireAge, from), inputs.fireAge)
+  const payoutStart = Math.max(inputs.lonevaxlingPayoutStart ?? 65, to)
+  const payoutYears = Math.max(1, Math.round(inputs.lonevaxlingPayoutYears ?? 5))
+  return { from, to, payoutStart, payoutYears }
+}
+
+// Ackumulerar pensionspotten (real) och annuitiserar den jämnt över uttagstiden.
+export function lonevaxlingPot(inputs) {
+  const amt = inputs.lonevaxlingMonthly ?? 0
+  const w = lonevaxlingWindow(inputs)
+  if (amt <= 0) return { ...w, potAtPayout: 0, annuityMonthly: 0 }
+  const paslag = inputs.lonevaxlingPaslag ?? LONEVAXLING_PASLAG
+  const rPens = lvRealPensionRate(inputs)
+  const contribAnnual = amt * (1 + paslag) * 12
+  let pot = 0
+  for (let age = w.from; age < w.to; age++) pot = pot * (1 + rPens) + contribAnnual
+  for (let age = w.to; age < w.payoutStart; age++) pot *= 1 + rPens
+  const pvFactor = annuity(rPens, w.payoutYears)
+  const annuityMonthly = pvFactor > 0 ? pot / pvFactor / 12 : 0
+  return { ...w, potAtPayout: pot, annuityMonthly }
+}
+
+// Marginalskatt på annuiteten vid uttag (ovanpå övrig pension i den åldern).
+function lvPensionMarginalRate(inputs, annuityMonthly, age) {
+  if (annuityMonthly <= 0) return inputs.kommunRate
+  const base =
+    age < 65
+      ? inputs.tjänstepension55_64 + inputs.privatPension55_64
+      : inputs.tjänstepension65plus + inputs.allmänPension65plus
+  const t0 = swedenIncomeTax({ pensionAnnual: base * 12, age, kommunRate: inputs.kommunRate })
+  const t1 = swedenIncomeTax({ pensionAnnual: (base + annuityMonthly) * 12, age, kommunRate: inputs.kommunRate })
+  return Math.max(0, (t1.taxMonthly - t0.taxMonthly) / annuityMonthly)
+}
+
+// V2-beslutsunderlag: löneväxling vs spara samma utrymme i ISK. Båda jämförs som
+// NETTO kapital (dagens kr) vid uttagsstart. Pension: pott × (1 − marginalskatt
+// vid uttag). ISK: nettolönen (efter marginalskatt nu) sparad och uppvuxen —
+// ISK-uttag är redan schablonbeskattat så kapitalet är netto.
+export function lonevaxlingComparison(inputs) {
+  const amt = inputs.lonevaxlingMonthly ?? 0
+  const lv = lonevaxlingPot(inputs)
+  const salaryMonthly = inputs.grossSalary ?? 0
+  // Växlingen tas från lönens topp ⇒ statlig skatt på utrymmet om lönen ligger
+  // över skiktgränsen. (Förenkling: jobbskatteavdragets marginaleffekt ignoreras.)
+  const overStatlig = salaryMonthly * 12 > STATLIG_THRESHOLD
+  const margNow = inputs.kommunRate + (overStatlig ? STATLIG_RATE : 0)
+  const margPension = lvPensionMarginalRate(inputs, lv.annuityMonthly, lv.payoutStart)
+  const pensionNet = lv.potAtPayout * (1 - margPension)
+
+  const rIsk = lvRealIskRate(inputs)
+  const netAnnual = amt * 12 * (1 - margNow)
+  let isk = 0
+  for (let age = lv.from; age < lv.to; age++) isk = isk * (1 + rIsk) + netAnnual
+  for (let age = lv.to; age < lv.payoutStart; age++) isk *= 1 + rIsk
+
+  return {
+    ...lv,
+    margNow,
+    margPension,
+    overStatlig,
+    pensionNet,
+    iskNet: isk,
+    diff: pensionNet - isk,
+    salaryAfter: salaryMonthly - amt,
+    underLonegrans: salaryMonthly > 0 && salaryMonthly - amt < LONEVAXLING_LONEGRANS,
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Per-year withdrawal schedule — the single source of truth.
 // overrides: { [age]: { spend?: number, extra?: number } }
 // Returns rows with: age, phase, spend, pensionTjanste, pensionAllman,
@@ -293,6 +405,8 @@ export function buildSchedule(inputs, overrides = {}) {
   const rows = []
   const stiftelseGrossAnnual = stiftelseAnnualGross(inputs)
   const stiftelseWin = stiftelseWindow(inputs)
+  // Löneväxling betalas ut som extra tjänstepension (real annuitet) i uttagsfönstret.
+  const lonevaxling = lonevaxlingPot(inputs)
   // Guard: om fireAge ligger i det förflutna (redan FIREd) startar simuleringen
   // idag i stället för att producera nonsens-rader för historiska år.
   const startAge = Math.max(inputs.fireAge, inputs.currentAge)
@@ -315,6 +429,15 @@ export function buildSchedule(inputs, overrides = {}) {
     } else {
       tjBrutto = inputs.tjänstepension65plus * pensionInflFactor
       alBrutto = inputs.allmänPension65plus * pensionInflFactor
+    }
+    // Löneväxlingens annuitet (real, dagens kr) läggs till tjänstepensionen i
+    // uttagsfönstret och indexeras likadant. Beskattas som pension (ingen JAS).
+    if (
+      lonevaxling.annuityMonthly > 0 &&
+      age >= lonevaxling.payoutStart &&
+      age < lonevaxling.payoutStart + lonevaxling.payoutYears
+    ) {
+      tjBrutto += lonevaxling.annuityMonthly * pensionInflFactor
     }
     // Stiftelse (engångskapital som betalas ut som annuitet). Tas upp som inkomst
     // av tjänst men ger INTE jobbskatteavdrag (utskiftning till andelsägare, ej
@@ -719,13 +842,18 @@ export function dwzTrajectories(inputs, schedule = buildSchedule(inputs)) {
   const capFire = computeCapitalAtFire(inputs, inputs.returnRate)
   let capS = capFire
   let capD = capFire
+  // 4 %-regeln (Trinity): ta ut 4 % av kapitalet vid FIRE varje år (realt
+  // konstant, dvs i dagens köpkraft). Ren referenskurva — bortser från pensioner.
+  let capW = capFire
+  const swrAnnual = SWR_STANDARD * capFire
   const out = []
   for (const row of schedule) {
     const iskS = row.iskAnnual
     const needD = Math.max(0, row.spend * scale - row.pensionNetto) * 12 + row.extra
     capS = Math.max(0, capS * (1 + rNet) - iskS)
     capD = Math.max(0, capD * (1 + rNet) - needD)
-    out.push({ age: row.age, standard: capS, dwz: capD })
+    capW = Math.max(0, capW * (1 + rNet) - swrAnnual)
+    out.push({ age: row.age, standard: capS, dwz: capD, swr4: capW })
   }
   return out
 }

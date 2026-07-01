@@ -9,6 +9,7 @@ import SensitivityTable from './components/SensitivityTable.jsx'
 import SustainabilityTable from './components/SustainabilityTable.jsx'
 import ReturnScenariosTable from './components/ReturnScenariosTable.jsx'
 import DieWithZeroPanel from './components/DieWithZeroPanel.jsx'
+import LonevaxlingPanel from './components/LonevaxlingPanel.jsx'
 import HouseholdPage from './components/HouseholdPage.jsx'
 
 function NavTab({ active, onClick, children }) {
@@ -45,9 +46,10 @@ const FIRE_VIEWS = [
   { key: 'oversikt', label: 'Översikt' },
   { key: 'risk', label: 'Risk (Monte Carlo)' },
   { key: 'dwz', label: 'Die With Zero' },
+  { key: 'lonevaxling', label: 'Löneväxling' },
 ]
 
-function FirePlanner({ inputs, update, reset, schedule, setOverride, resetSchedule, mc, sidebarOpen, stiftelseConfigured }) {
+function FirePlanner({ inputs, update, reset, schedule, setOverride, resetSchedule, mc, sidebarOpen, stiftelseConfigured, lonevaxlingConfigured }) {
   const [view, setView] = useState('oversikt')
   return (
     <div className="flex flex-col lg:flex-row">
@@ -64,6 +66,7 @@ function FirePlanner({ inputs, update, reset, schedule, setOverride, resetSchedu
           setOverride={setOverride}
           resetSchedule={resetSchedule}
           stiftelseConfigured={stiftelseConfigured}
+          lonevaxlingConfigured={lonevaxlingConfigured}
         />
       </aside>
 
@@ -97,6 +100,8 @@ function FirePlanner({ inputs, update, reset, schedule, setOverride, resetSchedu
         {view === 'dwz' && (
           <DieWithZeroPanel inputs={inputs} update={update} schedule={schedule} />
         )}
+
+        {view === 'lonevaxling' && <LonevaxlingPanel inputs={inputs} />}
 
         <footer className="pt-2 pb-8 text-xs text-gray-500">
           Endast underlag för planering — inte finansiell rådgivning. SWR enligt
@@ -287,6 +292,7 @@ export default function App() {
           mc={mc}
           sidebarOpen={sidebarOpen}
           stiftelseConfigured={configDefaults.stiftelseValue > 0}
+          lonevaxlingConfigured={configDefaults.lonevaxlingMonthly > 0}
         />
       )}
 
@@ -301,6 +307,7 @@ export default function App() {
           mc={partnerMc}
           sidebarOpen={sidebarOpen}
           stiftelseConfigured={partnerConfigDefaults.stiftelseValue > 0}
+          lonevaxlingConfigured={partnerConfigDefaults.lonevaxlingMonthly > 0}
         />
       )}
 

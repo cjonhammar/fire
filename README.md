@@ -25,7 +25,8 @@ Analyser:
 - **Deterministisk framskrivning** — portföljens väg år för år.
 - **Hållbarhet & avkastningsscenarier** — slutkapital och ev. tömningsålder vid 0–12,5 % avkastning.
 - **Monte Carlo** — 10 000 simuleringar med slumpmässig avkastning (och valfri slumpmässig inflation); ger lyckandegrad och percentilkon.
-- **Die With Zero** — hur mycket mer du kan spendera om målet är att lämna ett visst arv (binärsökning på utgiftsskalan).
+- **Die With Zero** — hur mycket mer du kan spendera om målet är att lämna ett visst arv (binärsökning på utgiftsskalan). Grafen visar även **4 %-regeln** (Trinity) som referenskurva.
+- **Löneväxling** — modellerar bruttolöneavstående till extra tjänstepension och svarar på om det lönar sig jämfört med att spara samma utrymme i ISK.
 - **Känslighetsanalys** — FIRE-tal som funktion av utgift × avkastning.
 - **Inkomstkällor per år** — staplar för lön, pension, stiftelse, extrajobb, ISK-uttag och skatt.
 
@@ -64,9 +65,14 @@ Implementerat i `swedenIncomeTax()` och verifierat mot Skatteverkets tabeller un
 - **Stiftelse:** ett engångskapital som betalas ut som annuitet mellan start- och slutålder; beskattas som pension (ger inte jobbskatteavdrag).
 - **Extrajobb:** extra arbetsinkomst (brutto, dagens kr) som inflationsuppräknas, lönebeskattas och ger jobbskatteavdrag.
 
+### Löneväxling
+
+Bruttolöneavstående till extra tjänstepension under arbetslivet. Modelleras i reala kronor: premien (`belopp × 1,058`, arbetsgivarens påslag på 5,8 % för skillnaden mellan arbetsgivaravgift och särskild löneskatt) ackumuleras till en pott som annuitiseras över uttagsperioden och läggs till tjänstepensionen. Pensionskapital antas ha lägre avkastningsskatt (~0,5 %/år) än ISK-schablonen.
+
+**Beslutsstöd:** en panel jämför löneväxling mot att i stället ta utrymmet som lön (efter marginalskatt) och spara i ISK — nettokapital i dagens kronor vid uttagsstart. Visar även en **varning om lönen efter växling understiger ~54 200 kr/mån (2025)** = 8,07 inkomstbasbelopp, gränsen för full allmän pension.
+
 ### Kända, medvetna förenklingar
 
-- Public service-avgift ignoreras (~1 250 kr/person/år).
 - 66+: förmånen för arbetande levereras enligt prop. 2025/26:32 via det förhöjda grundavdraget (som modelleras) — inget separat "förstärkt jobbskatteavdrag" läggs till. I praktiken noll effekt eftersom extrajobb antas sluta vid 65.
 - Skattegränser frysta på 2025-nivå (bracket creep ⇒ konservativt).
 - I hushållsvyn används person 1:s avkastning/inflation för båda; löneöverskott utöver månadssparandet sparas inte; endast person 1:s död modelleras.
